@@ -1,0 +1,11 @@
+# Holds phone numbers — never commit. Copy config.example.json instead.
+config.json
+
+data/
+logs/
+bin/
+node_modules/
+
+# Leftover bun compile scratch files (~88 MB each)
+*.bun-build
+.DS_Store

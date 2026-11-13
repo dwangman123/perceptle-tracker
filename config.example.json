@@ -1,0 +1,20 @@
+{
+  "chatGuid": "iMessage;+;chat000000000000000000",
+  "players": {
+    "me": "Your Name",
+    "+15555550101": "Friend One",
+    "+15555550102": "Friend Two"
+  },
+  "puzzleAnchor": {
+    "number": 118,
+    "date": "2026-11-12"
+  },
+  "categoryLabels": {
+    "numbers": "🔢",
+    "target": "🎯",
+    "ruler": "📐",
+    "drum": "Tempo",
+    "scissors": "✂️"
+  },
+  "vercelProject": "your-vercel-project"
+}

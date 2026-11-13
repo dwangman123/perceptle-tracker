@@ -1,0 +1,13 @@
+{
+  "name": "perceptle-tracker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scan": "bun run src/scan.ts scan --home .",
+    "stats": "bun run src/scan.ts stats --home .",
+    "board": "bun run src/scan.ts board --home .",
+    "test": "bun test",
+    "build": "sh scripts/build.sh",
+    "web": "bun run web/serve.ts"
+  }
+}

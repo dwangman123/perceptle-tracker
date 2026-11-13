@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perceptle Scores</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Zilla+Slab:wght@600;700&display=swap">
+<style>
+/* ── Tokens ─────────────────────────────────────────────
+   Exam room: a lit chart panel on a cool wall. Ink does
+   all the UI work; color appears only where it names a game. */
+:root {
+  color-scheme: light;
+  --wall:   #e3e8e6;
+  --panel:  #fbfcfb;
+  --ink:    #111417;
+  --ink-2:  #475057;
+  --muted:  #636c73;
+  --rule:   #d6dcda;
+  --grid:   #e6eae9;
+  --axis:   #bfc7c5;
+  --wash:   rgba(17, 20, 23, .06);
+  --skip:   rgba(17, 20, 23, .045);
+  --shadow: 0 1px 0 rgba(17, 20, 23, .05), 0 12px 32px -18px rgba(17, 20, 23, .28);
+
+  /* Games, in share-text order. Validated as a set (dataviz validator). */
+  --game-numbers:  #2a78d6;
+  --game-target:   #eb6834;
+  --game-ruler:    #1baf7a;
+  --game-drum:     #eda100;
+  --game-scissors: #e87ba4;
+  --game-overall:  var(--ink);
+
+  --display: "Zilla Slab", Rockwell, "Roboto Slab", Georgia, serif;
+  --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --wall:   #0e1113;
+    --panel:  #1a1e21;
+    --ink:    #edf0ef;
+    --ink-2:  #b7bfc3;
+    --muted:  #8e989d;
+    --rule:   #2c3236;
+    --grid:   #262b2f;
+    --axis:   #3b4247;
+    --wash:   rgba(237, 240, 239, .08);
+    --skip:   rgba(237, 240, 239, .045);
+    --shadow: 0 0 0 1px rgba(255, 255, 255, .04);
+    --game-numbers:  #3987e5;
+    --game-target:   #d95926;
+    --game-ruler:    #199e70;
+    --game-drum:     #c98500;
+    --game-scissors: #d55181;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --wall:   #0e1113;
+  --panel:  #1a1e21;
+  --ink:    #edf0ef;
+  --ink-2:  #b7bfc3;
+  --muted:  #8e989d;
+  --rule:   #2c3236;
+  --grid:   #262b2f;
+  --axis:   #3b4247;
+  --wash:   rgba(237, 240, 239, .08);
+  --skip:   rgba(237, 240, 239, .045);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, .04);
+  --game-numbers:  #3987e5;
+  --game-target:   #d95926;
+  --game-ruler:    #199e70;
+  --game-drum:     #c98500;
+  --game-scissors: #d55181;
+}
+
+/* ── Base ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--wall);
+  color: var(--ink);
+  font: 400 1rem/1.5 var(--body);
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  /* minmax(0, …) stops wide tables from stretching the page sideways */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  .page {
+    padding-block: 32px 72px;
+    padding-left: max(32px, env(safe-area-inset-left, 0px));
+    padding-right: max(32px, env(safe-area-inset-right, 0px));
+    gap: 20px;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 20px 16px;
+}
+@media (min-width: 720px) { .panel { padding: 28px 32px; } }
+
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ── Masthead ───────────────────────────────────────── */
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 0 4px;
+}
+.wordmark {
+  margin: 0;
+  font: 700 1.375rem/1 var(--display);
+  letter-spacing: .02em;
+}
+.meta { margin: 0; color: var(--ink-2); font-size: .875rem; }
+
+.caption { margin: 14px 0 0; color: var(--muted); font-size: .8125rem; }
+
+/* ── Section heads ──────────────────────────────────── */
+.section-head { margin-bottom: 16px; }
+.section-head h2 { margin: 0; font: 700 1.375rem/1.2 var(--display); }
+.section-head p { margin: 4px 0 0; color: var(--ink-2); font-size: .9375rem; }
+
+/* ── Tables ─────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+table { width: 100%; border-collapse: collapse; font-size: .9375rem; }
+th, td { padding: 10px 8px; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+thead th {
+  font-weight: 600;
+  font-size: .8125rem;
+  color: var(--ink-2);
+  vertical-align: bottom;
+  padding-bottom: 8px;
+}
+thead th .key {
+  display: block;
+  height: 3px;
+  width: 24px;
+  margin: 6px 0 0 auto;
+  border-radius: 2px;
+  background: var(--key);
+}
+thead th .emoji { font-size: .75rem; margin-right: 3px; }
+tbody tr { border-top: 1px solid var(--rule); }
+tbody th { font-weight: 600; font-size: 1rem; }
+td.overall { font-weight: 600; font-size: 1.0625rem; }
+.dim { color: var(--muted); }
+.lead {
+  font-weight: 700;
+  background: var(--wash);
+  border-radius: 5px;
+  padding: 2px 6px;
+  margin-right: -6px;
+}
+@media (max-width: 560px) {
+  table { font-size: .75rem; }
+  th, td { padding: 9px 2px; }
+  thead th { font-size: .75rem; }
+  thead th .key { width: 18px; }
+  tbody th { font-size: .8125rem; }
+  td.overall { font-size: .875rem; }
+  thead th .emoji, .wide { display: none; }
+  .lead { padding: 2px 3px; margin-right: -3px; }
+  /* If a phone is narrower still, the names stay put while numbers scroll. */
+  tbody th, thead th:first-child { position: sticky; left: 0; background: var(--panel); z-index: 1; }
+}
+
+/* ── Daily scores ───────────────────────────────────── */
+.section-head.split,
+.daily .section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+}
+.seg button {
+  border: 0;
+  background: transparent;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: .9375rem;
+  cursor: pointer;
+}
+.seg button:hover { background: var(--wash); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 0 0 8px -8px;
+}
+.legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: .875rem;
+  cursor: pointer;
+}
+.legend button:hover { background: var(--wash); }
+.legend .emoji, .tip-row .emoji, #daily-table .emoji { font-size: .8125em; margin-right: 4px; }
+.legend .swatch {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--key);
+}
+.legend button[data-key="overall"] .swatch { height: 4px; }
+/* Pressed = drawn bold. Unpressed lines are still drawn, just faint. */
+.legend button[aria-pressed="true"] { background: var(--wash); font-weight: 600; }
+.legend button[aria-pressed="false"] { color: var(--ink-2); }
+.legend button[aria-pressed="false"] .swatch { opacity: .4; }
+
+.plot { position: relative; margin: 0; touch-action: pan-y; }
+.plot:focus-visible { outline-offset: 6px; }
+.plot svg { display: block; width: 100%; overflow: visible; }
+.plot .grid line { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.plot .grid line.base { stroke: var(--axis); }
+.plot text { fill: var(--muted); font: 400 11px var(--mono); }
+.plot text.tick-date { fill: var(--ink-2); }
+.plot .skips rect { fill: var(--skip); }
+.plot .skips text { font-size: 10px; letter-spacing: .02em; }
+.plot text.tick-date.skip { fill: var(--muted); }
+.plot .series path { fill: none; stroke: currentColor; stroke-linejoin: round; stroke-linecap: round; }
+.plot .series .line { stroke-width: 2.25; }
+/* Zero-length dashes with round caps draw a row of dots across skipped days. */
+.plot .series .bridge { stroke-width: 2; stroke-dasharray: 0 6; opacity: .75; }
+.plot .series circle { fill: currentColor; stroke: var(--panel); stroke-width: 1.5; }
+.plot .series[data-key="overall"] .line { stroke-width: 3.25; }
+.plot .series[data-key="overall"] .bridge { stroke-width: 3; stroke-dasharray: 0 7; }
+.plot .series[data-key="overall"] circle { stroke-width: 2; }
+.plot .series.is-quiet { opacity: .3; }
+.plot .series.is-quiet .line { stroke-width: 1.5; }
+.plot .series.is-quiet .bridge { stroke-width: 1.5; }
+.plot .cross line { stroke: var(--ink-2); stroke-width: 1; shape-rendering: crispEdges; }
+.plot .cross circle { stroke: var(--panel); stroke-width: 2; }
+
+.tip {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  min-width: 168px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .35);
+  padding: 10px 12px;
+  font-size: .8125rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .1s;
+}
+.tip.is-on { opacity: 1; }
+.tip-head { font-weight: 700; margin-bottom: 2px; }
+.tip-sub { color: var(--muted); margin-bottom: 6px; }
+.tip-row { display: grid; grid-template-columns: 12px 3ch 1fr; align-items: center; gap: 8px; line-height: 1.6; }
+.tip-row .k { height: 3px; border-radius: 2px; background: var(--key); }
+.tip-row b { font: 600 .875rem var(--mono); text-align: right; }
+.tip-row span { color: var(--ink-2); }
+
+.daily-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+.daily-foot .caption { margin: 0; }
+.link-btn {
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.link-btn:hover { background: var(--wash); }
+#daily-table { margin-top: 16px; }
+
+/* ── Joker switch ───────────────────────────────────── */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 7px;
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.switch:hover { background: var(--wash); }
+.switch .track {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--axis);
+  transition: background .15s;
+}
+.switch .track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  transition: transform .15s;
+}
+.switch[aria-checked="true"] .track { background: var(--ink); }
+.switch[aria-checked="true"] .track::after { transform: translateX(14px); }
+@media (prefers-reduced-motion: reduce) {
+  .switch .track, .switch .track::after { transition: none; }
+}
+.plot text.joker { font-size: 12px; }
+
+/* ── Error state ────────────────────────────────────── */
+.error h1 { margin: 0 0 8px; font: 700 1.375rem/1.2 var(--display); }
+.error p { margin: 0 0 8px; color: var(--ink-2); }
+.error code { font-family: var(--mono); font-size: .875em; background: var(--wash); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="page" id="page">
+  <header class="masthead">
+    <h1 class="wordmark">Perceptle</h1>
+    <p class="meta" id="meta"></p>
+  </header>
+
+  <section class="panel" aria-labelledby="avg-h">
+    <div class="section-head split">
+      <h2 id="avg-h">Averages by game</h2>
+      <button type="button" class="switch" id="joker-switch" role="switch" aria-checked="true" hidden>
+        <span class="track" aria-hidden="true"></span>Include 🃏 days
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table id="avg-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="caption" id="avg-caption"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="stats-h">
+    <div class="section-head">
+      <h2 id="stats-h">Overall stats</h2>
+    </div>
+    <div class="table-wrap">
+      <table id="stats-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="caption">Shaded numbers are the best in each column. For avg place, lower is better.</p>
+  </section>
+
+  <section class="panel daily" aria-labelledby="daily-h">
+    <div class="section-head">
+      <div>
+        <h2 id="daily-h">Daily scores</h2>
+        <p id="daily-sub"></p>
+      </div>
+      <div class="seg" role="group" aria-label="Player" id="player-seg"></div>
+    </div>
+    <div class="legend" role="group" aria-label="Highlight a line" id="legend"></div>
+    <figure class="plot" id="plot" tabindex="0">
+      <svg id="plot-svg" role="img"></svg>
+      <div class="tip" id="tip" role="status" aria-live="polite"></div>
+    </figure>
+    <div class="daily-foot">
+      <p class="caption" id="daily-note"></p>
+      <button class="link-btn" id="table-toggle" aria-expanded="false" aria-controls="daily-table">Show as table</button>
+    </div>
+    <div class="table-wrap" id="daily-table" hidden>
+      <table>
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+// Game names by category key. The keys name each round's emoji in the share text.
+const GAME_NAMES = { numbers: "Dots", target: "Ball", ruler: "Angle", drum: "Tempo", scissors: "Cut" };
+const PLAYER_KEY = "perceptle.player";
+const JOKER_KEY = "perceptle.includeJoker";
+const SVGNS = "http://www.w3.org/2000/svg";
+
+// ── Small helpers ─────────────────────────────────────
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k === "style") for (const [p, val] of Object.entries(v)) el.style.setProperty(p, val);
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid != null) el.append(kid);
+  return el;
+}
+function s(tag, attrs = {}) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+const shortDate = (iso) =>
+  new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const one = (n) => (n == null ? "–" : n.toFixed(1));
+const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+// Round to one decimal before comparing, so ties match what the table shows.
+const round1 = (n) => (n == null ? null : Math.round(n * 10) / 10);
+// The share-text emoji for a game, shown beside its name (decorative for screen readers).
+const emojiTag = (emoji) => (emoji ? h("span", { class: "emoji", "aria-hidden": "true", text: emoji }) : null);
+const colorOf = (key) => `var(--game-${key})`;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+// ── Load ──────────────────────────────────────────────
+async function load() {
+  let data;
+  try {
+    const res = await fetch("export.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    data = await res.json();
+  } catch {
+    return showError();
+  }
+  const games = data.categories.map((c) => ({ key: c.key, emoji: c.emoji, name: GAME_NAMES[c.key] ?? c.label }));
+  const puzzles = [...data.puzzles].sort((a, b) => a.number - b.number);
+  const players = [...data.players].sort((a, b) => b.overall.avg - a.overall.avg);
+  if (!puzzles.length || !players.length) return showError("No scores yet. The page fills in after the first scan.");
+
+  renderMeta(data, puzzles);
+  renderAverages(players, games, puzzles);
+  renderStats(players, puzzles);
+  setupDaily(players, games, puzzles);
+}
+
+function showError(message) {
+  const page = document.getElementById("page");
+  page.replaceChildren(
+    h("section", { class: "panel error" },
+      h("h1", { text: "Scores didn't load" }),
+      message
+        ? h("p", { text: message })
+        // The local-server hint only helps on this Mac; the published copy gets a plain note.
+        : !["localhost", "127.0.0.1", "file:"].some((x) => location.hostname === x || location.protocol === x)
+        ? h("p", { text: "Scores aren't available right now. Try again in a few minutes." })
+        : h("p", {},
+            "This page reads ", h("code", { text: "data/export.json" }),
+            " through a local server. From the project folder, run ", h("code", { text: "bun run web" }),
+            ", then open ", h("code", { text: "http://localhost:4118" }), "."),
+    ),
+  );
+}
+
+function renderMeta(data, puzzles) {
+  const first = puzzles[0], last = puzzles[puzzles.length - 1];
+  const updated = new Date(data.generatedAt).toLocaleString("en-US", {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+  document.getElementById("meta").textContent =
+    `Puzzles #${first.number}–#${last.number} · ${shortDate(first.date)} to ${shortDate(last.date)} · Updated ${updated}`;
+}
+
+// ── Averages table ────────────────────────────────────
+function renderAverages(players, games, puzzles) {
+  const table = document.getElementById("avg-table");
+  const sw = document.getElementById("joker-switch");
+  const caption = document.getElementById("avg-caption");
+  const hasJoker = puzzles.some((pz) => pz.joker);
+  let include = !hasJoker || store.get(JOKER_KEY) !== "off";
+
+  const headCell = (label, key, emoji) =>
+    h("th", { scope: "col", style: { "--key": colorOf(key) } },
+      emoji ? h("span", { class: "emoji", "aria-hidden": "true", text: emoji }) : null,
+      label,
+      h("span", { class: "key", "aria-hidden": "true" }),
+    );
+  table.tHead.append(h("tr", {},
+    h("th", { scope: "col", text: "Player" }),
+    headCell("Overall", "overall"),
+    ...games.map((g) => headCell(g.name, g.key, g.emoji)),
+    h("th", { scope: "col", text: "Days" }),
+  ));
+
+  // Averages come straight from the daily boards, so leaving joker days out
+  // is the same calculation over fewer days. Rows keep their all-days order.
+  const cols = [{ key: "overall", value: (r) => r.overall }, ...games.map((g) => ({ key: g.key, value: (r) => r.scores[g.key] }))];
+  function fill() {
+    const counted = puzzles.filter((pz) => include || !pz.joker);
+    const rows = players.map((p) => {
+      const posts = counted.flatMap((pz) => pz.board.filter((b) => b.player === p.player));
+      return { name: p.player, days: posts.length, avg: Object.fromEntries(cols.map((c) => [c.key, round1(mean(posts.map(c.value)))])) };
+    });
+    const best = Object.fromEntries(cols.map((c) => [c.key, Math.max(...rows.map((r) => r.avg[c.key] ?? -1))]));
+    table.tBodies[0].replaceChildren(...rows.map((r) => h("tr", {},
+      h("th", { scope: "row", text: r.name }),
+      ...cols.map((c) => {
+        const v = r.avg[c.key];
+        const lead = v != null && v === best[c.key];
+        return h("td", { class: `num${c.key === "overall" ? " overall" : ""}` },
+          lead ? h("span", { class: "lead", text: one(v) }) : one(v));
+      }),
+      h("td", { class: "num dim" }, String(r.days), h("span", { class: "wide", text: `/${counted.length}` })),
+    )));
+    sw.setAttribute("aria-checked", String(include));
+    caption.textContent = include
+      ? "Shaded numbers are the best average in each column."
+      : "Averages leave out 🃏 days. Shaded numbers are the best in each column.";
+  }
+
+  sw.hidden = !hasJoker;
+  sw.addEventListener("click", () => {
+    include = !include;
+    store.set(JOKER_KEY, include ? "on" : "off");
+    fill();
+  });
+  fill();
+}
+
+// ── Overall stats ─────────────────────────────────────
+function renderStats(players, puzzles) {
+  const table = document.getElementById("stats-table");
+  const rows = players.map((p) => {
+    const posts = puzzles.flatMap((pz) => {
+      const b = pz.board.find((r) => r.player === p.player);
+      return b ? [b] : [];
+    });
+    let streak = 0, run = 0;
+    for (const pz of puzzles) {
+      run = pz.board.some((r) => r.player === p.player) ? run + 1 : 0;
+      streak = Math.max(streak, run);
+    }
+    return {
+      name: p.player,
+      wins: posts.filter((r) => r.rank === 1).length,
+      best: Math.max(...posts.map((r) => r.overall)),
+      worst: Math.min(...posts.map((r) => r.overall)),
+      place: round1(mean(posts.map((r) => r.rank))),
+      streak,
+    };
+  });
+
+  const max = (f) => Math.max(...rows.map(f).filter((v) => v != null));
+  const top = {
+    wins: max((r) => r.wins),
+    best: max((r) => r.best),
+    worst: max((r) => r.worst),
+    place: Math.min(...rows.map((r) => r.place)),
+    streak: max((r) => r.streak),
+  };
+  const lead = (isTop, ...content) => (isTop ? h("span", { class: "lead" }, ...content) : h("span", {}, ...content));
+
+  table.tHead.append(h("tr", {},
+    h("th", { scope: "col", text: "Player" }),
+    h("th", { scope: "col", text: "Wins" }),
+    h("th", { scope: "col", text: "Best day" }),
+    h("th", { scope: "col", text: "Worst day" }),
+    h("th", { scope: "col", text: "Avg place" }),
+    h("th", { scope: "col", text: "Longest streak" }),
+  ));
+  for (const r of rows) {
+    table.tBodies[0].append(h("tr", {},
+      h("th", { scope: "row", text: r.name }),
+      h("td", { class: "num" }, lead(r.wins === top.wins, String(r.wins))),
+      h("td", { class: "num" }, lead(r.best === top.best, String(r.best))),
+      h("td", { class: "num" }, lead(r.worst === top.worst, String(r.worst))),
+      h("td", { class: "num" }, lead(r.place === top.place, r.place.toFixed(1))),
+      h("td", { class: "num" }, lead(r.streak === top.streak, `${r.streak} day${r.streak === 1 ? "" : "s"}`)),
+    ));
+  }
+}
+
+// ── Daily scores ──────────────────────────────────────
+function setupDaily(players, games, puzzles) {
+  const series = [
+    { key: "overall", name: "Overall", value: (r) => r.overall },
+    ...games.map((g) => ({ key: g.key, name: g.name, emoji: g.emoji, value: (r) => r.scores[g.key] })),
+  ];
+  // Bold lines; the rest are drawn faint. Overall starts bold so the trend reads first.
+  const strong = new Set(["overall"]);
+  let previewKey = null; // a legend entry under the pointer or keyboard focus
+  const isStrong = (key) => strong.has(key) || previewKey === key;
+  // Faint lines underneath, bold on top; overall last within each group.
+  const layered = () => [...series.slice(1), series[0]].sort((a, b) => isStrong(a.key) - isStrong(b.key));
+  const names = players.map((p) => p.player);
+  const saved = store.get(PLAYER_KEY);
+  let current = names.includes(saved) ? saved : names[0];
+  let rows = [];
+  let hover = null; // puzzle index under the crosshair
+
+  const seg = document.getElementById("player-seg");
+  const legend = document.getElementById("legend");
+  const plot = document.getElementById("plot");
+  const svg = document.getElementById("plot-svg");
+  const tip = document.getElementById("tip");
+  const toggle = document.getElementById("table-toggle");
+  const dailyTable = document.getElementById("daily-table");
+
+  // Player buttons
+  for (const name of names) {
+    seg.append(h("button", {
+      type: "button", text: name, "aria-pressed": String(name === current),
+      onclick: () => select(name),
+    }));
+  }
+  function select(name) {
+    current = name;
+    store.set(PLAYER_KEY, name);
+    for (const b of seg.children) b.setAttribute("aria-pressed", String(b.textContent === name));
+    refresh();
+  }
+
+  // Legend: clicking a name switches its line between bold and faint;
+  // hovering previews it bold. Every line is always drawn.
+  for (const x of series) {
+    const btn = h("button", {
+      type: "button", "data-key": x.key, "aria-pressed": String(strong.has(x.key)),
+      style: { "--key": colorOf(x.key) },
+      onclick: () => {
+        strong.has(x.key) ? strong.delete(x.key) : strong.add(x.key);
+        btn.setAttribute("aria-pressed", String(strong.has(x.key)));
+        draw();
+      },
+      onpointerenter: () => preview(x.key),
+      onpointerleave: () => preview(null),
+      onfocus: () => preview(x.key),
+      onblur: () => preview(null),
+    }, h("span", { class: "swatch", "aria-hidden": "true" }), emojiTag(x.emoji), x.name);
+    legend.append(btn);
+  }
+  function preview(key) {
+    if (previewKey === key) return;
+    previewKey = key;
+    draw();
+  }
+
+  // Table view
+  toggle.addEventListener("click", () => {
+    const open = dailyTable.hidden;
+    dailyTable.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.textContent = open ? "Hide table" : "Show as table";
+  });
+
+  // Geometry, recomputed on every draw so it follows the container width.
+  let geo = null;
+  function draw() {
+    const W = Math.max(280, Math.round(plot.clientWidth));
+    const H = W < 560 ? 260 : 340;
+    // Extra room on top when there's a row of 🃏 marks to show.
+    const m = { top: puzzles.some((pz) => pz.joker) ? 24 : 12, right: 10, bottom: W < 560 ? 34 : 44, left: 32 };
+    const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
+    const n = puzzles.length;
+    const step = n > 1 ? iw / (n - 1) : 0;
+    const x = (i) => m.left + (n > 1 ? i * step : iw / 2);
+    const y = (v) => m.top + ih - (v / 100) * ih;
+    geo = { W, H, m, iw, ih, n, step, x, y };
+
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("height", H);
+    svg.setAttribute("aria-label",
+      `Line chart of ${current}'s daily scores from puzzle #${puzzles[0].number} to #${puzzles[n - 1].number}: overall and each game, 0 to 100.`);
+    svg.replaceChildren();
+
+    // Days with no post: a pale column, merged across a run of skipped days.
+    const skips = s("g", { class: "skips" });
+    const half = n > 1 ? step / 2 : iw / 2;
+    for (let i = 0; i < n; i++) {
+      if (rows[i]) continue;
+      let j = i;
+      while (j + 1 < n && !rows[j + 1]) j++;
+      const x1 = Math.max(m.left, x(i) - half), x2 = Math.min(W - m.right, x(j) + half);
+      skips.append(s("rect", { x: x1, y: m.top, width: x2 - x1, height: ih }));
+      if (x2 - x1 >= 48) {
+        const t = s("text", { x: (x1 + x2) / 2, y: m.top + ih - 8, "text-anchor": "middle" });
+        t.textContent = "No post";
+        skips.append(t);
+      }
+      i = j;
+    }
+    svg.append(skips);
+
+    // Grid and y ticks
+    const grid = s("g", { class: "grid" });
+    for (const t of [0, 25, 50, 75, 100]) {
+      grid.append(s("line", { x1: m.left, x2: W - m.right, y1: y(t), y2: y(t), class: t === 0 ? "base" : "" }));
+      const label = s("text", { x: m.left - 8, y: y(t) + 4, "text-anchor": "end" });
+      label.textContent = t;
+      grid.append(label);
+    }
+    // X ticks: thin out to keep ~56px between labels, always keeping the latest puzzle.
+    const every = Math.max(1, Math.ceil((W < 560 ? 52 : 58) / (step || 1)));
+    for (let i = n - 1; i >= 0; i -= every) {
+      const d = s("text", { x: x(i), y: H - m.bottom + 18, "text-anchor": "middle", class: rows[i] ? "tick-date" : "tick-date skip" });
+      d.textContent = shortDate(puzzles[i].date);
+      grid.append(d);
+      if (W >= 560) {
+        const num = s("text", { x: x(i), y: H - m.bottom + 33, "text-anchor": "middle" });
+        num.textContent = `#${puzzles[i].number}`;
+        grid.append(num);
+      }
+    }
+    // 🃏 above each joker puzzle, whatever the tick thinning leaves out.
+    puzzles.forEach((pz, i) => {
+      if (!pz.joker) return;
+      const j = s("text", { x: x(i), y: m.top - 8, "text-anchor": "middle", class: "joker" });
+      j.textContent = "🃏";
+      grid.append(j);
+    });
+    svg.append(grid);
+
+    // Lines: solid between days in a row, dotted across skipped days,
+    // and a dot on every day played.
+    for (const x0 of layered()) {
+      const bold = isStrong(x0.key);
+      const pts = rows.map((r, i) => (r ? [x(i).toFixed(1), y(x0.value(r)).toFixed(1)] : null));
+      let line = "", bridge = "", prev = null;
+      pts.forEach((p, i) => {
+        if (!p) return;
+        if (prev === null) line += `M${p}`;
+        else if (prev === i - 1) line += `L${p}`;
+        else {
+          bridge += `M${pts[prev]}L${p}`;
+          line += `M${p}`;
+        }
+        prev = i;
+      });
+      const g = s("g", { class: bold ? "series" : "series is-quiet", "data-key": x0.key });
+      g.style.color = colorOf(x0.key);
+      g.append(s("path", { class: "bridge", d: bridge }), s("path", { class: "line", d: line }));
+      const r = x0.key === "overall" ? (bold ? 3.75 : 2.5) : (bold ? 3 : 2);
+      for (const p of pts) if (p) g.append(s("circle", { cx: p[0], cy: p[1], r }));
+      svg.append(g);
+    }
+
+    // Crosshair layer
+    svg.append(s("g", { class: "cross", id: "cross" }));
+    if (hover != null) showAt(hover);
+  }
+
+  function showAt(i) {
+    hover = i;
+    const { x, y, m, ih, W } = geo;
+    const cross = svg.querySelector("#cross");
+    cross.replaceChildren(s("line", { x1: x(i), x2: x(i), y1: m.top, y2: m.top + ih }));
+    const r = rows[i];
+    const pz = puzzles[i];
+
+    tip.replaceChildren(h("div", { class: "tip-head", text: `${shortDate(pz.date)} · #${pz.number}${pz.joker ? " · 🃏 Joker day" : ""}` }));
+    if (!r) {
+      tip.append(h("div", { class: "tip-sub", text: `No post from ${current}` }));
+    } else {
+      tip.append(h("div", { class: "tip-sub", text: `Grade ${r.grade} · ${ordinal(r.rank)} of ${pz.board.length}` }));
+      for (const x0 of layered()) {
+        const dot = s("circle", { cx: x(i), cy: y(x0.value(r)), r: x0.key === "overall" ? 5 : 4.5 });
+        dot.style.fill = colorOf(x0.key);
+        if (!isStrong(x0.key)) dot.style.opacity = ".45";
+        cross.append(dot);
+      }
+      // Every value is listed, bold or faint, in legend order.
+      for (const x0 of series) {
+        const v = x0.value(r);
+        tip.append(h("div", { class: "tip-row", style: { "--key": colorOf(x0.key) } },
+          h("i", { class: "k", "aria-hidden": "true" }),
+          h("b", { text: String(v) }),
+          h("span", {}, emojiTag(x0.emoji), x0.name),
+        ));
+      }
+    }
+    tip.classList.add("is-on");
+    // Sit beside the crosshair, flipping left near the right edge.
+    const tw = tip.offsetWidth;
+    const left = x(i) + 14 + tw > W ? x(i) - 14 - tw : x(i) + 14;
+    tip.style.left = `${Math.max(0, left)}px`;
+  }
+  function hide() {
+    hover = null;
+    svg.querySelector("#cross")?.replaceChildren();
+    tip.classList.remove("is-on");
+  }
+  const indexAt = (clientX) => {
+    const box = svg.getBoundingClientRect();
+    const px = (clientX - box.left) * (geo.W / box.width);
+    return Math.min(geo.n - 1, Math.max(0, Math.round((px - geo.m.left) / (geo.step || 1))));
+  };
+  plot.addEventListener("pointermove", (e) => showAt(indexAt(e.clientX)));
+  plot.addEventListener("pointerdown", (e) => showAt(indexAt(e.clientX)));
+  plot.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+  plot.addEventListener("blur", hide);
+  plot.addEventListener("keydown", (e) => {
+    const last = geo.n - 1;
+    const map = { ArrowLeft: -1, ArrowRight: 1 };
+    if (e.key in map) {
+      e.preventDefault();
+      showAt(hover == null ? last : Math.min(last, Math.max(0, hover + map[e.key])));
+    } else if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      showAt(e.key === "Home" ? 0 : last);
+    } else if (e.key === "Escape") hide();
+  });
+  plot.setAttribute("aria-label", "Daily scores chart. Use the left and right arrow keys to read each day.");
+
+  function refresh() {
+    rows = puzzles.map((pz) => {
+      const r = pz.board.find((b) => b.player === current);
+      return r ? { ...r } : null;
+    });
+    const played = rows.filter(Boolean).length;
+    document.getElementById("daily-sub").textContent =
+      `${current} · played ${played} of ${puzzles.length} puzzles`;
+    document.getElementById("daily-note").textContent =
+      (played < puzzles.length
+        ? "Shaded days have no post, and dotted lines skip over them."
+        : "Posted every day in this range.") +
+      (puzzles.some((pz) => pz.joker) ? " 🃏 marks joker days." : "") +
+      " Click a game name to highlight its line.";
+    renderDailyTable();
+    draw();
+  }
+
+  function renderDailyTable() {
+    const table = dailyTable.querySelector("table");
+    table.tHead.replaceChildren(h("tr", {},
+      h("th", { scope: "col", text: "Day" }),
+      h("th", { scope: "col", text: "Overall" }),
+      ...games.map((g) => h("th", { scope: "col" }, emojiTag(g.emoji), g.name)),
+      h("th", { scope: "col", text: "Place" }),
+    ));
+    const body = table.tBodies[0];
+    body.replaceChildren();
+    for (let i = puzzles.length - 1; i >= 0; i--) {
+      const r = rows[i], pz = puzzles[i];
+      if (!r) continue;
+      body.append(h("tr", {},
+        h("th", { scope: "row" }, shortDate(pz.date), h("span", { class: "dim num wide", text: ` #${pz.number}` }),
+          pz.joker ? h("span", { text: " 🃏", title: "Joker day" }) : null),
+        h("td", { class: "num overall" }, `${r.overall} `, h("span", { class: "dim", text: r.grade })),
+        ...games.map((g) => h("td", { class: "num", text: String(r.scores[g.key]) })),
+        h("td", { class: "num dim" }, ordinal(r.rank), h("span", { class: "wide", text: ` of ${pz.board.length}` })),
+      ));
+    }
+  }
+
+  new ResizeObserver(() => draw()).observe(plot);
+  refresh();
+}
+
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+load();
+</script>
+</body>
+</html>
